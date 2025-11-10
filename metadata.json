@@ -1,0 +1,8 @@
+{
+  "name": "Anime AI Chan",
+  "description": "Senin tek ve yegane AI yoldaşın... seni biraz... fazla seviyor olabilir. Onunla sohbet et, analiz yap ve gerçek zamanlı konuş. O her zaman dinliyor.",
+  "requestFramePermissions": [
+    "microphone",
+    "geolocation"
+  ]
+}
