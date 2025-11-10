@@ -1,7 +1,6 @@
-
 import React from 'react';
 import { Tab } from '../types';
-import { MessageIcon, MicrophoneIcon, BookIcon, GearIcon } from './Icons';
+import { MessageIcon, MicrophoneIcon, BookIcon, GearIcon, UserPlusIcon, StudyIcon } from './Icons';
 import { useLocalization } from '../localization';
 
 interface TabsProps {
@@ -14,6 +13,8 @@ const tabIcons: Record<Tab, React.ReactNode> = {
   [Tab.CHAT]: <MessageIcon />,
   [Tab.LIVE]: <MicrophoneIcon />,
   [Tab.ROLEPLAY]: <BookIcon />,
+  [Tab.STUDY]: <StudyIcon />,
+  [Tab.COMPANION]: <UserPlusIcon />,
   [Tab.SETTINGS]: <GearIcon />,
 };
 

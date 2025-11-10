@@ -1,21 +1,25 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { GoogleGenAI, LiveServerMessage, Modality, Blob } from '@google/genai';
 import { encode, decode, decodeAudioData } from '../utils/audioUtils';
-import { MicrophoneIcon, StopIcon, UserCircleIcon } from './Icons';
-import { CustomBot } from '../types';
+import { MicrophoneIcon, StopIcon, UserCircleIcon, VolumeOffIcon, VolumeUpIcon } from './Icons';
+// FIX: Changed incorrect type 'CustomBot' to 'Companion'.
+import { Companion } from '../types';
 import { useLocalization } from '../localization';
 
 type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'error';
 
 interface LiveConversationProps {
-    bot: CustomBot;
+    // FIX: Changed incorrect type 'CustomBot' to 'Companion'.
+    bot: Companion;
     theme: Record<string, string>;
+    isNsfw: boolean;
 }
 
-const LiveConversation: React.FC<LiveConversationProps> = ({ bot, theme }) => {
+const LiveConversation: React.FC<LiveConversationProps> = ({ bot, theme, isNsfw }) => {
   const { t } = useLocalization();
   const [connectionState, setConnectionState] = useState<ConnectionState>('disconnected');
   const [transcripts, setTranscripts] = useState<{ user: string; model: string }>({ user: '', model: '' });
+  const [isMuted, setIsMuted] = useState(false);
 
   const sessionPromiseRef = useRef<Promise<any> | null>(null);
   const inputAudioContextRef = useRef<AudioContext | null>(null);
@@ -27,6 +31,11 @@ const LiveConversation: React.FC<LiveConversationProps> = ({ bot, theme }) => {
   
   const currentUserTranscriptRef = useRef('');
   const currentModelTranscriptRef = useRef('');
+
+  const isMutedRef = useRef(isMuted);
+  useEffect(() => {
+    isMutedRef.current = isMuted;
+  }, [isMuted]);
 
   const stopConversation = useCallback(() => {
     if (sessionPromiseRef.current) {
@@ -62,13 +71,18 @@ const LiveConversation: React.FC<LiveConversationProps> = ({ bot, theme }) => {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
 
+      let finalInstruction = bot.systemInstruction;
+      if (isNsfw) {
+          finalInstruction += t('prompts.nsfw_suffix');
+      }
+
       sessionPromiseRef.current = ai.live.connect({
         model: 'gemini-2.5-flash-native-audio-preview-09-2025',
         config: {
           responseModalities: [Modality.AUDIO],
           inputAudioTranscription: {},
           outputAudioTranscription: {},
-          systemInstruction: bot.systemInstruction,
+          systemInstruction: finalInstruction,
           speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } }
         },
         callbacks: {
@@ -110,7 +124,7 @@ const LiveConversation: React.FC<LiveConversationProps> = ({ bot, theme }) => {
 
             // Handle audio playback
             const audioData = message.serverContent?.modelTurn?.parts[0]?.inlineData?.data;
-            if (audioData && outputAudioContextRef.current) {
+            if (audioData && outputAudioContextRef.current && !isMutedRef.current) {
               const audioBuffer = await decodeAudioData(decode(audioData), outputAudioContextRef.current, 24000, 1);
               const source = outputAudioContextRef.current.createBufferSource();
               source.buffer = audioBuffer;
@@ -181,7 +195,7 @@ const LiveConversation: React.FC<LiveConversationProps> = ({ bot, theme }) => {
             <p className="mt-2"><strong className={`text-${theme.accent}-400`}>{t('live.model_transcript_label')}</strong> {transcripts.model || "..."}</p>
         </div>
 
-        <div className="mt-8">
+        <div className="mt-8 flex items-center justify-center gap-4">
             <button
                 onClick={connectionState === 'connected' || connectionState === 'connecting' ? stopConversation : startConversation}
                 className={`px-8 py-4 rounded-full text-white font-bold text-lg shadow-lg transition-all duration-300 transform hover:scale-105 flex items-center ${
@@ -196,6 +210,16 @@ const LiveConversation: React.FC<LiveConversationProps> = ({ bot, theme }) => {
                     <><MicrophoneIcon /> <span className="ml-2">{t('live.button_talk')}</span></>
                 )}
             </button>
+            {connectionState === 'connected' && (
+                <button
+                    onClick={() => setIsMuted(!isMuted)}
+                    className={`p-4 rounded-full text-white transition-colors ${isMuted ? 'bg-gray-600' : `bg-${theme.accent}-500`}`}
+                    aria-label={isMuted ? t('live.unmute') : t('live.mute')}
+                    title={isMuted ? t('live.unmute') : t('live.mute')}
+                >
+                    {isMuted ? <VolumeOffIcon /> : <VolumeUpIcon />}
+                </button>
+            )}
         </div>
     </div>
   );

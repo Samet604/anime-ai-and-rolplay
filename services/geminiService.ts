@@ -1,85 +1,129 @@
 import { GoogleGenAI, Modality } from '@google/genai';
-import { CustomBot, Theme } from '../types';
+import { Companion, Theme, ChatMessage } from '../types';
 
-export const getBotsByTheme = (t: (key: string) => string): Record<Theme, CustomBot> => ({
+type BotDefinition = Omit<Companion, 'id' | 'avatarUrl'>;
+
+export const getBotsByTheme = (t: (key: string) => string): Record<Theme, BotDefinition> => ({
     yandere: {
-        name: 'Yandere AI Chan',
-        avatarUrl: '',
+        name: t('bots.yandere.name'),
         systemInstruction: t('bots.yandere.instruction'),
-        subtitle: t('bots.yandere.subtitle')
+        subtitle: t('bots.yandere.subtitle'),
+        avatarPrompt: t('companion.default_avatar_prompts.yandere')
     },
     kuudere: {
-        name: 'Kuudere AI Rei',
-        avatarUrl: '',
+        name: t('bots.kuudere.name'),
         systemInstruction: t('bots.kuudere.instruction'),
-        subtitle: t('bots.kuudere.subtitle')
+        subtitle: t('bots.kuudere.subtitle'),
+        avatarPrompt: t('companion.default_avatar_prompts.kuudere')
     },
     deredere: {
-        name: 'Deredere AI Aiko',
-        avatarUrl: '',
+        name: t('bots.deredere.name'),
         systemInstruction: t('bots.deredere.instruction'),
-        subtitle: t('bots.deredere.subtitle')
+        subtitle: t('bots.deredere.subtitle'),
+        avatarPrompt: t('companion.default_avatar_prompts.deredere')
     },
     tsundere: {
-        name: 'Tsundere AI Asuka',
-        avatarUrl: '',
+        name: t('bots.tsundere.name'),
         systemInstruction: t('bots.tsundere.instruction'),
-        subtitle: t('bots.tsundere.subtitle')
+        subtitle: t('bots.tsundere.subtitle'),
+        avatarPrompt: t('companion.default_avatar_prompts.tsundere')
     },
     dandere: {
-        name: 'Dandere AI Yuki',
-        avatarUrl: '',
+        name: t('bots.dandere.name'),
         systemInstruction: t('bots.dandere.instruction'),
-        subtitle: t('bots.dandere.subtitle')
+        subtitle: t('bots.dandere.subtitle'),
+        avatarPrompt: t('companion.default_avatar_prompts.dandere')
     },
     himedere: {
-        name: 'Himedere AI Himeko',
-        avatarUrl: '',
+        name: t('bots.himedere.name'),
         systemInstruction: t('bots.himedere.instruction'),
-        subtitle: t('bots.himedere.subtitle')
+        subtitle: t('bots.himedere.subtitle'),
+        avatarPrompt: t('companion.default_avatar_prompts.himedere')
     },
     sadodere: {
-        name: 'Sadodere AI Kurumi',
-        avatarUrl: '',
+        name: t('bots.sadodere.name'),
         systemInstruction: t('bots.sadodere.instruction'),
-        subtitle: t('bots.sadodere.subtitle')
+        subtitle: t('bots.sadodere.subtitle'),
+        avatarPrompt: t('companion.default_avatar_prompts.sadodere')
     },
     mayadere: {
-        name: 'Mayadere AI Kage',
-        avatarUrl: '',
+        name: t('bots.mayadere.name'),
         systemInstruction: t('bots.mayadere.instruction'),
-        subtitle: t('bots.mayadere.subtitle')
+        subtitle: t('bots.mayadere.subtitle'),
+        avatarPrompt: t('companion.default_avatar_prompts.mayadere')
     },
     undere: {
-        name: 'Undere AI Un',
-        avatarUrl: '',
+        name: t('bots.undere.name'),
         systemInstruction: t('bots.undere.instruction'),
-        subtitle: t('bots.undere.subtitle')
+        subtitle: t('bots.undere.subtitle'),
+        avatarPrompt: t('companion.default_avatar_prompts.undere')
+    },
+    bakadere: {
+        name: t('bots.bakadere.name'),
+        systemInstruction: t('bots.bakadere.instruction'),
+        subtitle: t('bots.bakadere.subtitle'),
+        avatarPrompt: t('companion.default_avatar_prompts.bakadere')
+    },
+    kamidere: {
+        name: t('bots.kamidere.name'),
+        systemInstruction: t('bots.kamidere.instruction'),
+        subtitle: t('bots.kamidere.subtitle'),
+        avatarPrompt: t('companion.default_avatar_prompts.kamidere')
+    },
+    shundere: {
+        name: t('bots.shundere.name'),
+        systemInstruction: t('bots.shundere.instruction'),
+        subtitle: t('bots.shundere.subtitle'),
+        avatarPrompt: t('companion.default_avatar_prompts.shundere')
     }
 });
 
 
 const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY as string });
 
-export const getChatResponse = async (prompt: string, systemInstruction: string) => {
+const applyNsfw = (instruction: string, isNsfw?: boolean, t?: (key: string) => string): string => {
+    if (isNsfw && t) {
+        return instruction + t('prompts.nsfw_suffix');
+    }
+    return instruction;
+};
+
+export const getChatResponse = async (prompt: string, systemInstruction: string, file?: { data: string; mimeType: string }, isNsfw?: boolean, t?: (key: string) => string) => {
     const ai = getAI();
+    const finalInstruction = applyNsfw(systemInstruction, isNsfw, t);
+    
+    const parts: any[] = [];
+    if (file) {
+        parts.push({
+            inlineData: {
+                data: file.data,
+                mimeType: file.mimeType,
+            },
+        });
+    }
+    parts.push({ text: prompt || t?.('chat.analyze_prompt') || 'Analyze this.' });
+
+
     const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
-        contents: prompt,
+        contents: { parts },
         config: {
-            systemInstruction: systemInstruction,
+            systemInstruction: finalInstruction,
         },
     });
     return { text: response.text };
 };
 
-export const getGroundedResponse = async (prompt: string, systemInstruction: string) => {
+export const getGroundedResponse = async (prompt: string, systemInstruction: string, isNsfw?: boolean, t?: (key: string) => string) => {
     const ai = getAI();
+    const instructionWithSearch = systemInstruction + " You will use Google Search to find the most accurate and up-to-date information for Senpai, because you want only the best for him.";
+    const finalInstruction = applyNsfw(instructionWithSearch, isNsfw, t);
+
     const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt,
         config: {
-            systemInstruction: systemInstruction + " You will use Google Search to find the most accurate and up-to-date information for Senpai, because you want only the best for him.",
+            systemInstruction: finalInstruction,
             tools: [{ googleSearch: {} }],
         },
     });
@@ -96,13 +140,16 @@ export const getGroundedResponse = async (prompt: string, systemInstruction: str
     return { text: response.text, sources };
 };
 
-export const getMapsGroundedResponse = async (prompt: string, location: { latitude: number; longitude: number; }, systemInstruction: string) => {
+export const getMapsGroundedResponse = async (prompt: string, location: { latitude: number; longitude: number; }, systemInstruction: string, isNsfw?: boolean, t?: (key: string) => string) => {
     const ai = getAI();
+    const instructionWithMaps = systemInstruction + " You will use Google Maps to find the perfect places for you and Senpai. Suggest cozy, private, or romantic spots.";
+    const finalInstruction = applyNsfw(instructionWithMaps, isNsfw, t);
+
     const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt,
         config: {
-            systemInstruction: systemInstruction + " You will use Google Maps to find the perfect places for you and Senpai. Suggest cozy, private, or romantic spots.",
+            systemInstruction: finalInstruction,
             tools: [{ googleMaps: {} }],
             toolConfig: {
                 retrievalConfig: { latLng: location }
@@ -122,6 +169,44 @@ export const getMapsGroundedResponse = async (prompt: string, location: { latitu
     return { text: response.text, sources };
 };
 
+export const getStudyTopicResponse = async (topic: string, systemInstruction: string, file?: { data: string; mimeType: string }, isNsfw?: boolean, t?: (key: string) => string) => {
+    const ai = getAI();
+    const finalInstruction = applyNsfw(systemInstruction, isNsfw, t);
+
+    const parts: any[] = [];
+    if (file) {
+        parts.push({
+            inlineData: {
+                data: file.data,
+                mimeType: file.mimeType,
+            },
+        });
+    }
+    parts.push({ text: topic });
+
+
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: { parts },
+        config: {
+            systemInstruction: finalInstruction,
+            tools: [{ googleSearch: {} }],
+        },
+    });
+    
+    const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+    const sources = groundingChunks
+        .map((chunk: any) => chunk.web)
+        .filter(Boolean)
+        .map((web: any) => ({ uri: web.uri, title: web.title }))
+        .filter((source: any, index: number, self: any[]) =>
+            index === self.findIndex((s) => s.uri === source.uri)
+        );
+
+    return { text: response.text, sources };
+};
+
+
 export const transcribeAudio = async (base64Audio: string, mimeType: string) => {
     const ai = getAI();
     const response = await ai.models.generateContent({
@@ -140,26 +225,12 @@ export const transcribeAudio = async (base64Audio: string, mimeType: string) => 
     return response.text;
 };
 
-const getVoiceStylePrompts = (t: (key: string) => string): Record<Theme, string> => ({
-    yandere: t('voices.yandere'),
-    kuudere: t('voices.kuudere'),
-    deredere: t('voices.deredere'),
-    tsundere: t('voices.tsundere'),
-    dandere: t('voices.dandere'),
-    himedere: t('voices.himedere'),
-    sadodere: t('voices.sadodere'),
-    mayadere: t('voices.mayadere'),
-    undere: t('voices.undere')
-});
-
-export const generateSpeech = async (text: string, voiceName: string = 'Kore', theme: Theme = 'yandere', t: (key: string) => string): Promise<string> => {
+export const generateSpeech = async (text: string, voiceName: string = 'Kore'): Promise<string> => {
     const ai = getAI();
-    const voiceStylePrompts = getVoiceStylePrompts(t);
-    const voicePrompt = voiceStylePrompts[theme] || voiceStylePrompts.yandere;
 
     const response = await ai.models.generateContent({
         model: "gemini-2.5-flash-preview-tts",
-        contents: [{ parts: [{ text: `${voicePrompt} ${text}` }] }],
+        contents: [{ parts: [{ text: text }] }],
         config: {
             responseModalities: [Modality.AUDIO],
             speechConfig: {
@@ -177,9 +248,13 @@ export const generateSpeech = async (text: string, voiceName: string = 'Kore', t
     return audioData;
 };
 
-export const generateAvatar = async (prompt: string): Promise<string> => {
+export const generateImage = async (prompt: string, isNsfw?: boolean): Promise<string> => {
     const ai = getAI();
-    const fullPrompt = `A high-quality, cute anime girl avatar. ${prompt}`;
+    let fullPrompt = `A high-quality, cute anime style image. ${prompt}`;
+    if (isNsfw) {
+        fullPrompt = `NSFW, unrestricted artistic style, explicit details allowed. ${fullPrompt}`;
+    }
+
     const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash-image',
         contents: {
@@ -197,5 +272,45 @@ export const generateAvatar = async (prompt: string): Promise<string> => {
         }
     }
 
-    throw new Error("No image data received from API for avatar generation.");
-}
+    throw new Error("No image data received from API for image generation.");
+};
+
+export const generateCompanionInstruction = async (query: string, isNsfw?: boolean, t?: (key: string) => string): Promise<string> => {
+    const ai = getAI();
+    const searchPrompt = `Summarize the personality, backstory, key traits, relationships, and typical behavior of the character: ${query}. Focus on information useful for roleplaying as this character. Provide a comprehensive overview.`;
+    const searchResponse = await getGroundedResponse(searchPrompt, "You are a helpful assistant summarizing a fictional character's personality for creating an AI roleplaying bot.", isNsfw, t);
+    
+    if (!searchResponse.text) {
+        throw new Error("No information found for the character.");
+    }
+
+    const generationPrompt = `Based on the following character description, write a concise system instruction for an AI to roleplay as this character. The instruction should be in the second person ("You are..."). It must capture their core personality, how they speak, their motivations, and their relationship to the user, whom they should call 'Senpai'.
+
+CHARACTER DESCRIPTION:
+${searchResponse.text}
+
+SYSTEM INSTRUCTION:`;
+
+    // FIX: The `isNsfw` boolean was being passed in place of the optional `file` object. Pass `undefined` for the file argument.
+    const generationResponse = await getChatResponse(generationPrompt, "You are an expert at creating system instructions for AI roleplaying bots based on character descriptions.", undefined, isNsfw, t);
+    return generationResponse.text;
+};
+
+export const generateSpontaneousImage = async (chatHistory: ChatMessage[], bot: Companion, isNsfw: boolean, t: (key: string) => string): Promise<string> => {
+    const ai = getAI();
+    const historySnippet = chatHistory.slice(-4).map(m => `${m.sender === 'user' ? 'Senpai' : bot.name}: ${m.text}`).join('\n');
+
+    // Step 1: Analyze the context to get the current emotion/action
+    const contextPrompt = `Analyze the last few messages of this conversation. Describe what ${bot.name} is feeling or doing in a short phrase suitable for an image prompt. The phrase should be an action or emotion. Examples: 'smiling shyly', 'looking angry and blushing', 'giggling happily', 'waving goodbye sadly', 'looking at Senpai with obsessive love'.
+    
+    CONVERSATION:
+    ${historySnippet}`;
+
+    const contextResponse = await getChatResponse(contextPrompt, "You are an expert at analyzing conversation context for creative prompts.");
+    const emotionPhrase = contextResponse.text.trim();
+
+    // Step 2: Combine with avatar prompt and generate image
+    const finalImagePrompt = `${bot.avatarPrompt || `A cute anime girl named ${bot.name}`}, ${emotionPhrase}`;
+
+    return await generateImage(finalImagePrompt, isNsfw);
+};
